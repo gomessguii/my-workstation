@@ -1,0 +1,33 @@
+- name: Downloading microsoft-prod Package
+  become: true
+  get_url:
+    url: https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb
+    dest: /tmp/ansible/packages-microsoft-prod.deb
+
+- name: Adding microsoft-prod Package
+  become: true
+  shell: dpkg -i /tmp/ansible/packages-microsoft-prod.deb
+
+- name: Installing
+  become: true
+  shell: 'apt {{ item }}'
+  loop:
+    - update
+    - install apt-transport-https -y
+    - update
+    - install dotnet-sdk-6.0 -y
+    - install aspnetcore-runtime-6.0 -y
+
+- name: Install EF Core
+  become: true
+  shell: dotnet tool install --global dotnet-ef
+
+- name: Setup VSCode Extensions
+  command: 'code --install-extension {{ item }}'
+  become: false
+  loop:
+    - ms-dotnettools.csharp
+    - rahulsahay.csharp-aspnetcore
+    - jchannon.csharpextensions
+    - ms-dotnettools.vscode-dotnet-pack
+    - ms-dotnettools.vscode-dotnet-runtime

@@ -1,0 +1,138 @@
+
+- name: Determining Chassis Type
+  become: true
+  shell: dmidecode --string chassis-type
+  register: chassis
+
+- name: Creating Temporary Directory
+  become: true
+  file: 
+    path: /tmp/ansible
+    state: directory
+
+- name: Installing Linux Apps
+  become: true
+  dnf:
+    name: '{{ item }}'
+    install_recommends: yes
+    state: present
+  loop:
+      - htop
+      - curl
+      - wget
+      - cmake
+      - gcc
+      - git
+      - unzip
+      - terminator
+      - bash-completion
+
+- name: Install TLP on Notebook
+  when: chassis.stdout == 'Notebook'
+  become: true
+  dnf:
+    name: tlp
+
+- name: Installing Visual Studio Code
+  become: true
+  block:
+  - name: Downloading Visual Studio Code Binaries
+    get_url:
+      url: https://update.code.visualstudio.com/latest/linux-x64/stable
+      dest: /tmp/ansible/vscode.rpm
+  
+  - name: Installing Visual Studio Code
+    dnf:
+      name: /tmp/ansible/vscode.rpm
+      state: present
+
+
+- name: Installing VSCode Extensions
+  command: 'code --install-extension {{ item }}'
+  become: false
+  loop:
+    - anan.jetbrains-darcula-theme
+      - vscode-icons-team.vscode-icons
+      - ms-azuretools.vscode-docker
+      - simonsiefke.prettier-vscode
+      - christian-kohler.path-intellisense
+      - mhutchie.git-graph
+      - bierner.markdown-mermaid
+      - hediet.vscode-drawio
+      - redhat.vscode-yaml
+      - redhat.ansible
+      - golang.go
+
+- name: Installing Docker
+  become: true
+  block:
+  - name: Importing Docker GPG key
+    shell: dnf config-manager --add-repo=https://download.docker.com/linux/fedora/docker-ce.repo
+    register: docker_repo_config
+
+  - name: Installing Docker
+    dnf:
+      name: docker-ce
+      state: present
+    when: docker_repo_config.changed
+
+  - name: Adding existing user to group Docker
+    user:
+      name: '{{ ansible_user_id }}'
+      groups: docker
+      append: yes
+
+- name: Installing Insomnia
+  block:
+  - name: Download the latest version of Insomnia
+    get_url:
+      url: https://api.github.com/repos/getinsomnia/insomnia/releases/latest
+      dest: /tmp/insomnia.json
+      force: yes
+
+  - name: Get the download URL for the latest version of Insomnia
+    set_fact:
+      insomnia_url: "https://dl.insomnia.rest/{{ (lookup('file', '/tmp/insomnia.json') | from_json).assets[0].browser_download_url }}"
+
+  - name: Download the latest version of Insomnia
+    get_url:
+      url: "{{ insomnia_url }}"
+      dest: "/tmp/insomnia.rpm"
+      force: yes
+
+- name: Installing DBeaver
+  become: true
+  block:
+  - name: Downloading DBeaver Package
+    get_url:
+      url: https://dbeaver.io/files/dbeaver-ce-latest-stable.x86_64.rpm
+      dest: /tmp/ansible/dbeaver.rpm
+  
+  - name: Installing DBeaver
+    dnf:
+      name: /tmp/ansible/dbeaver.rpm
+      state: present
+
+- name: Download Brave browser
+  block:
+  - name: Download the Brave browser package
+    command: wget https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+    register: result
+    failed_when: result.rc != 0
+
+  - name: Import the Brave browser repository key
+    command: sudo rpm --import brave-core.asc
+    when: result.rc == 0
+
+  - name: Add the Brave browser repository to the sources list
+    lineinfile:
+      dest: /etc/yum.repos.d/brave-browser-release.repo
+      line: "[brave-browser-release]
+name=Brave Browser Repository
+baseurl=https://brave-browser-rpm-release.s3.brave.com/
+gpgcheck=1
+enabled=1"
+  - name: Install the Brave browser
+    yum:
+      name: brave-browser
+      state: present

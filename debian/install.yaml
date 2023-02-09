@@ -1,0 +1,124 @@
+- name: Installing Linux Apps
+  become: true
+  apt:
+    name: '{{ item }}'
+    install_recommends: yes
+    state: present
+  loop:
+      - htop
+      - curl
+      - wget
+      - cmake
+      - gcc
+      - git
+      - unzip
+      - terminator
+      - bash-completion
+
+- name: Install TLP on Notebook
+  when: chassis.stdout == 'Notebook'
+  become: true
+  apt:
+    name: tlp
+
+- name: Installing VSCode
+  become: true
+  block:
+    - name: Downloading VSCode Binaries
+      get_url:
+        url: https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64
+        dest: /tmp/ansible/vscode.deb
+    
+    - name: Installing VSCode
+      apt: deb=/tmp/ansible/vscode.deb
+    
+- name: Installing VSCode Extensions
+  command: 'code --install-extension {{ item }}'
+  become: false
+  loop:
+    - anan.jetbrains-darcula-theme
+    - vscode-icons-team.vscode-icons
+    - ms-azuretools.vscode-docker
+    - simonsiefke.prettier-vscode
+    - christian-kohler.path-intellisense
+    - mhutchie.git-graph
+    - bierner.markdown-mermaid
+    - hediet.vscode-drawio
+    - redhat.vscode-yaml
+    - redhat.ansible
+    - golang.go
+
+- name: Installing Docker
+  become: true
+  block: 
+  - name: Installing Docker Key
+    apt_key:
+      url: 'https://download.docker.com/linux/ubuntu/gpg'
+      state: present
+
+  - name: Installing Docker.io
+    apt:
+      name: docker.io
+  
+  - name: Adding existing user to group Docker
+    user: 
+      name: '{{ ansible_user_id }}'
+      groups: docker 
+      append: yes
+
+- name: Download Insomnia
+  hosts: localhost
+  become: true
+  tasks:
+  - name: Download the latest version of Insomnia
+    get_url:
+    url: https://api.github.com/repos/getinsomnia/insomnia/releases/latest
+    dest: /tmp/insomnia.json
+    force: yes
+
+  - name: Get the download URL for the latest version of Insomnia
+    set_fact:
+    insomnia_url: "https://dl.insomnia.rest/{{ (lookup('file', '/tmp/insomnia.json') | from_json).assets[0].browser_download_url }}"
+
+  - name: Download and install the latest version of Insomnia
+    get_url:
+    url: "{{ insomnia_url }}"
+    dest: "/tmp/insomnia.deb"
+    force: yes
+
+  - name: Install Insomnia
+    dpkg:
+      name: "/tmp/insomnia.deb"
+      force: yes
+      state: present
+
+- name: Installl DBeaver
+  become: true
+  block:
+    - name: Downloading DBeaver Package
+      get_url: 
+        url: https://dbeaver.io/files/dbeaver-ce_latest_amd64.deb
+        dest: /tmp/ansible/dbeaver.deb
+    - name: Installing DBeaver
+      apt: deb=/tmp/ansible/dbeaver.deb
+
+- name: Download Brave browser
+  block:
+    - name: Download the Brave browser package
+      command: wget https://brave-browser-apt-release.s3.brave.com/brave-core.asc
+      register: result
+      failed_when: result.rc != 0
+
+    - name: Import the Brave browser repository key
+      command: sudo apt-key add brave-core.asc
+      when: result.rc == 0
+
+    - name: Add the Brave browser repository to the sources list
+      lineinfile:
+        dest: /etc/apt/sources.list.d/brave-browser-release.list
+        line: "deb [arch=amd64] https://brave-browser-apt-release.s3.brave.com/ stable main"
+
+    - name: Install the Brave browser
+      apt:
+        name: brave-browser
+        state: present

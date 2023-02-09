@@ -1,0 +1,31 @@
+- name: Download dotnet-install.sh script
+  become: yes
+  get_url:
+    url: https://dot.net/v1/dotnet-install.sh
+    dest: /tmp/dotnet-install.sh
+    mode: 0755
+
+- name: Install .NET 6
+  become: yes
+  shell: /tmp/dotnet-install.sh --version 6
+  environment:
+    DOTNET_ROOT: /usr/share/dotnet
+
+- name: Verify .NET 6 installation
+  become: yes
+  shell: dotnet --version
+  register: result
+
+- name: Install EF Core
+  become: true
+  shell: dotnet tool install --global dotnet-ef
+
+- name: Setup VSCode Extensions
+  command: 'code --install-extension {{ item }}'
+  become: false
+  loop:
+    - ms-dotnettools.csharp
+    - rahulsahay.csharp-aspnetcore
+    - jchannon.csharpextensions
+    - ms-dotnettools.vscode-dotnet-pack
+    - ms-dotnettools.vscode-dotnet-runtime
