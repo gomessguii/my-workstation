@@ -14,7 +14,6 @@
   become: true
   dnf:
     name: '{{ item }}'
-    install_recommends: yes
     state: present
   loop:
       - htop

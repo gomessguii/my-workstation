@@ -26,14 +26,8 @@
       path: /tmp/ansible
       state: directory
 
-  - name: Setting Git PS1
-    lineinfile:
-      path: ~/.bash_profile
-      insertafter: EOF
-      line: export PS1='\[\e[32m\][\[\e[m\]\[\e[32m\]\u\[\e[m\]\[\e[32m\]]\[\e[m\]\[\e[34m\][\[\e[m\]\[\e[34m\]\W\[\e[m\]\[\e[34m\]]\[\e[m\]\[\e[31m\]$(__git_ps1 "(%s)")► \[\e[00m\]'
-
   - name: When Debian
-    when: distro_name == "Debian"
+    when: distro_name.stdout == "Debian"
     include_tasks: ./debian/install.yaml
 
   - name: When C# on Debian
