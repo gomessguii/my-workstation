@@ -41,7 +41,7 @@
     include_tasks: ./debian/dotnet-6.yaml
 
   - name: When Fedora
-    when: distro_name == "Debian"
+    when: distro_name == "Fedora"
     include_tasks: ./fedora/install.yaml
 
   - name: When C# on Fedora
