@@ -6,66 +6,71 @@
       prompt: Setup C# workstation? (s/n)
       private: false
   tasks:
-    - name: Getting Distro name
-      shell: ./get-distro.sh
-      register: distro_name
+  - name: Make get-distro.sh executable
+    file:
+      path: ./get-distro.sh
+      mode: 0755
 
-    - name: Determining Chassis Type
-      become: true
-      shell: dmidecode --string chassis-type
-      register: chassis
+  - name: Getting Distro name
+    shell: ./get-distro.sh
+    register: distro_name
 
-    - name: Creating Temporary Directory
-      become: true
-      file: 
-        path: /tmp/ansible
-        state: directory
+  - name: Determining Chassis Type
+    become: true
+    shell: dmidecode --string chassis-type
+    register: chassis
 
-    - name: Setting Git PS1
-      lineinfile:
-        path: ~/.bash_profile
-        insertafter: EOF
-        line: export PS1='\[\e[32m\][\[\e[m\]\[\e[32m\]\u\[\e[m\]\[\e[32m\]]\[\e[m\]\[\e[34m\][\[\e[m\]\[\e[34m\]\W\[\e[m\]\[\e[34m\]]\[\e[m\]\[\e[31m\]$(__git_ps1 "(%s)")► \[\e[00m\]'
+  - name: Creating Temporary Directory
+    become: true
+    file: 
+      path: /tmp/ansible
+      state: directory
 
-    - name: When Debian
-      when: distro_name == "Debian"
-      include_tasks: ./debian/install.yaml
+  - name: Setting Git PS1
+    lineinfile:
+      path: ~/.bash_profile
+      insertafter: EOF
+      line: export PS1='\[\e[32m\][\[\e[m\]\[\e[32m\]\u\[\e[m\]\[\e[32m\]]\[\e[m\]\[\e[34m\][\[\e[m\]\[\e[34m\]\W\[\e[m\]\[\e[34m\]]\[\e[m\]\[\e[31m\]$(__git_ps1 "(%s)")► \[\e[00m\]'
 
-    - name: When C# on Debian
-      when: distro_name == "Debian" and csharp == "s"
-      include_tasks: ./debian/dotnet-6.yaml
+  - name: When Debian
+    when: distro_name == "Debian"
+    include_tasks: ./debian/install.yaml
 
-    - name: When Fedora
-      when: distro_name == "Debian"
-      include_tasks: ./fedora/install.yaml
+  - name: When C# on Debian
+    when: distro_name == "Debian" and csharp == "s"
+    include_tasks: ./debian/dotnet-6.yaml
 
-    - name: When C# on Fedora
-      when: distro_name == "Fedora" and csharp == "s"
-      include_tasks: ./fedora/install.yaml
+  - name: When Fedora
+    when: distro_name == "Debian"
+    include_tasks: ./fedora/install.yaml
 
-    - name: Installing Docker-Compose
-      become: true
-      block:
-      - name: Get Latest Compose Version Number
-        shell: echo $(curl https://github.com/docker/compose/releases | grep -m1 '<a href="/docker/compose/releases/download/' | grep -o 'v[0-9:].[0-9].[0-9]')
-        register: compose_version_result
-        ignore_errors: yes
+  - name: When C# on Fedora
+    when: distro_name == "Fedora" and csharp == "s"
+    include_tasks: ./fedora/install.yaml
 
-      - name: Set Variable
-        set_fact:
-          compose_version: '{{ compose_version_result.stdout }}'
+  - name: Installing Docker-Compose
+    become: true
+    block:
+    - name: Get Latest Compose Version Number
+      shell: echo $(curl https://github.com/docker/compose/releases | grep -m1 '<a href="/docker/compose/releases/download/' | grep -o 'v[0-9:].[0-9].[0-9]')
+      register: compose_version_result
+      ignore_errors: yes
 
-      - name: Downloading latest Compose Version
-        get_url:
-          url: 'https://github.com/docker/compose/releases/download/{{ compose_version }}/docker-compose-linux-x86_64'
-          dest: /usr/local/bin/docker-compose
+    - name: Set Variable
+      set_fact:
+        compose_version: '{{ compose_version_result.stdout }}'
 
-      - name: Grant Permissions to Compose
-        file:
-          path: /usr/local/bin/docker-compose
-          state: file
-          mode: 'u+x,g+x,o+x'
-            
-    - name: Rebooting System
-      become: true
-      reboot:
+    - name: Downloading latest Compose Version
+      get_url:
+        url: 'https://github.com/docker/compose/releases/download/{{ compose_version }}/docker-compose-linux-x86_64'
+        dest: /usr/local/bin/docker-compose
+
+    - name: Grant Permissions to Compose
+      file:
+        path: /usr/local/bin/docker-compose
+        state: file
+        mode: 'u+x,g+x,o+x'
+          
+  - name: Rebooting System
+    become: true
+    reboot:
